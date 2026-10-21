@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Grand Prix Turbo — Arcade</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#10151e;color:#f5f7fb;font-family:system-ui,-apple-system,Segoe UI,sans-serif;display:flex;justify-content:center}.wrap{width:min(100%,560px);padding:14px}h1{text-align:center;font-size:clamp(25px,7vw,35px);margin:4px 0}.sub{text-align:center;color:#bac6d7;font-size:13px;margin:0 0 12px}.hud{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}.box{background:#202b3a;border:1px solid #37485d;border-radius:10px;padding:7px 3px;text-align:center}.label{font-size:10px;color:#afbed2;text-transform:uppercase}.value{font-size:18px;font-weight:800}canvas{display:block;width:100%;aspect-ratio:3/4;border:2px solid #526276;border-radius:12px;background:#275a35;touch-action:manipulation}.controls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:9px}button,select{font:inherit;border:0;border-radius:11px;padding:12px 6px;font-weight:800}button{color:white;background:#33445b;min-height:48px;box-shadow:0 3px 0 #192431;touch-action:manipulation}button:active{transform:translateY(2px);box-shadow:none}#nitro{background:#087fca}#start{background:#f0ad28;color:#171717;width:100%;margin-top:10px}#mode{width:100%;margin-top:8px;background:#202b3a;color:white;border:1px solid #46566b}.note{font-size:12px;line-height:1.5;text-align:center;color:#bfcbda}.results{background:#202b3a;border-radius:10px;padding:10px;margin-top:9px;font-size:13px;line-height:1.6}.results strong{color:#ffcc5b}
+</style></head><body><div class="wrap">
+<h1>🏁 GRAND PRIX TURBO</h1><p class="sub">Arcade de carreras • ¡construido contigo!</p>
+<div class="hud"><div class="box"><div class="label">Modo</div><div class="value" id="modeName">Carrera</div></div><div class="box"><div class="label">Vuelta</div><div class="value" id="lap">1/3</div></div><div class="box"><div class="label">Velocidad</div><div class="value"><span id="speed">0</span></div></div><div class="box"><div class="label">Tiempo</div><div class="value" id="time">0.0</div></div></div>
+<canvas id="game" width="360" height="480" aria-label="Pista arcade de Fórmula 1"></canvas>
+<div class="controls"><button id="left">⬅️ IZQUIERDA</button><button id="right">DERECHA ➡️</button><button id="nitro">⚡ NITRO</button></div>
+<select id="mode" aria-label="Modo de juego"><option value="quick">🏎️ Carrera rápida</option><option value="championship">🏆 Campeonato (3 carreras)</option></select>
+<button id="start">▶ EMPEZAR CARRERA</button>
+<div class="results" id="results" aria-live="polite">Elige un modo y pulsa <strong>Empezar carrera</strong>. Evita a los rivales, usa nitro y completa 3 vueltas.</div>
+<p class="note">Controles táctiles: mantén pulsados izquierda/derecha para girar y nitro para acelerar. Equipos de fantasía y colores inspirados en las carreras; no son afiliaciones oficiales.</p>
+</div>
+<script>
+(()=>{
+const c=document.getElementById('game'),ctx=c.getContext('2d'),W=360,H=480,$=id=>document.getElementById(id);
+let running=false,finished=false,last=0,elapsed=0,speed=0,progress=0,nitro=100,x=180,roadOffset=0,rivals=[],spawn=0,lap=1,flash=0,mode='quick',raceNo=1,points=0,results=[];
+const road={l:55,r:305};const keys={left:false,right:false,nitro:false};
+const teams=[{name:'Scuderia Rosso',color:'#ed3544',accent:'#fff'},{name:'Blue Arrow GP',color:'#2d9fe8',accent:'#fff'},{name:'Volt Racing',color:'#f5c542',accent:'#222'},{name:'Emerald Speed',color:'#31b875',accent:'#fff'}];
+function car(px,py,color,accent='#fff',player=false){ctx.fillStyle='rgba(0,0,0,.3)';ctx.fillRect(px-13,py+3,27,42);ctx.fillStyle='#111';ctx.fillRect(px-15,py+5,6,13);ctx.fillRect(px+9,py+5,6,13);ctx.fillRect(px-15,py+27,6,13);ctx.fillRect(px+9,py+27,6,13);ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(px-8,py);ctx.lineTo(px+8,py);ctx.lineTo(px+12,py+12);ctx.lineTo(px+9,py+41);ctx.lineTo(px-9,py+41);ctx.lineTo(px-12,py+12);ctx.closePath();ctx.fill();ctx.fillStyle=accent;ctx.fillRect(px-8,py+10,16,5);ctx.fillStyle='#142130';ctx.fillRect(px-7,py+20,14,9);ctx.fillStyle='#f7f7f7';ctx.fillRect(px-8,py+2,5,3);ctx.fillRect(px+3,py+2,5,3);if(player&&keys.nitro&&nitro>0){ctx.fillStyle='#56dfff';ctx.beginPath();ctx.moveTo(px-6,py+41);ctx.lineTo(px,py+56+Math.random()*6);ctx.lineTo(px+6,py+41);ctx.fill();}}
+function draw(){
+ctx.clearRect(0,0,W,H);ctx.fillStyle='#285b36';ctx.fillRect(0,0,W,H);
+for(let y=-40+(roadOffset%60);y<H;y+=60){ctx.fillStyle='#316b3e';ctx.fillRect(0,y,W,29);}
+ctx.fillStyle='#777e87';ctx.fillRect(road.l,0,road.r-road.l,H);ctx.fillStyle='#f4f5f7';ctx.fillRect(road.l,0,5,H);ctx.fillRect(road.r-5,0,5,H);
+for(let y=-30+(roadOffset%36);y<H;y+=36){ctx.fillStyle='#e64b4b';ctx.fillRect(road.l-7,y,7,18);ctx.fillRect(road.r,y,7,18);ctx.fillStyle='#fff';ctx.fillRect(road.l-7,y+18,7,18);ctx.fillRect(road.r,y+18,7,18);}
+ctx.fillStyle='#f8edc5';for(let y=-50+(roadOffset%62);y<H;y+=62)ctx.fillRect(178,y,4,29);
+rivals.forEach(r=>car(r.x,r.y,r.color,r.accent));car(x,380,teams[0].color,'#fff',true);
+if(!running&&!finished){ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.fillStyle='#fff';ctx.font='bold 22px system-ui';ctx.fillText('¡PISA EL ACELERADOR!',180,220);ctx.font='14px system-ui';ctx.fillText('Desliza con los botones',180,247);}
+if(finished){ctx.fillStyle='rgba(0,0,0,.72)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.fillStyle='#ffcf5a';ctx.font='bold 27px system-ui';ctx.fillText(mode==='championship'&&raceNo<3?'¡META!':'🏆 ¡CARRERA TERMINADA!',180,205);ctx.fillStyle='#fff';ctx.font='bold 19px system-ui';ctx.fillText('Tiempo: '+elapsed.toFixed(1)+' s',180,240);ctx.font='14px system-ui';ctx.fillText(mode==='championship'?'Carrera '+raceNo+' de 3':'¡Buen trabajo, piloto!',180,268);}
+}
+function updateHud(){$('lap').textContent=lap+'/3';$('speed').textContent=Math.round(speed);$('time').textContent=elapsed.toFixed(1);$('modeName').textContent=mode==='quick'?'Rápida':'Copa';}
+function startRace(newChamp=false){if(newChamp||mode!==$('mode').value){mode=$('mode').value;raceNo=1;points=0;results=[];}running=true;finished=false;elapsed=0;speed=0;progress=0;nitro=100;x=180;roadOffset=0;rivals=[];spawn=.4;lap=1;flash=0;last=performance.now();$('start').textContent='↻ REINICIAR';$('results').innerHTML=mode==='championship'?'<strong>Campeonato:</strong> carrera '+raceNo+'/3 • puntos acumulados: '+points:'¡Carrera en marcha! Evita los coches rivales.';updateHud();requestAnimationFrame(loop);}
+function loop(now){if(!running)return;const dt=Math.min((now-last)/1000,.04);last=now;elapsed+=dt;let boost=keys.nitro&&nitro>0;speed=Math.min(320,speed+(boost?170:85)*dt);if(!boost)speed=Math.max(100,speed-15*dt);else nitro=Math.max(0,nitro-34*dt);if(!keys.nitro)nitro=Math.min(100,nitro+11*dt);progress+=speed*dt/3600*9;roadOffset=(roadOffset+speed*dt*1.15)%1000;spawn-=dt;
+if(spawn<=0){const lane=[100,145,215,260][Math.floor(Math.random()*4)];rivals.push({x:lane,y:-48,color:teams[1+Math.floor(Math.random()*(teams.length-1))].color,accent:'#fff'});spawn=.7+Math.random()*.8;}
+rivals.forEach(r=>r.y+=speed*dt*.7);rivals=rivals.filter(r=>r.y<H+55);
+for(const r of rivals){if(Math.abs(r.x-x)<25&&Math.abs(r.y-380)<38){speed=Math.max(70,speed-115);flash=7;r.y-=25;}}
+x=Math.max(road.l+23,Math.min(road.r-23,x));lap=Math.min(3,Math.floor(progress/180)+1);updateHud();draw();
+if(progress>=540){running=false;finished=true;const rank=1+Math.floor(Math.random()*4);const pts=[25,18,15,12][rank-1];points+=pts;results.push({race:raceNo,time:elapsed,rank,pts});draw();if(mode==='championship'){$('results').innerHTML='<strong>Carrera '+raceNo+'/3 finalizada.</strong><br>Posición simulada: '+rank+'.º • Puntos: '+pts+'<br>Total del campeonato: <strong>'+points+'</strong>'+(raceNo<3?' — Pulsa «SIGUIENTE CARRERA» para continuar.':'<br>🏆 Campeonato terminado. ¡Total: '+points+' puntos!');if(raceNo<3){raceNo++;$('start').textContent='➡️ SIGUIENTE CARRERA';$('start').onclick=()=>startRace(false);}else{$('start').textContent='🏁 NUEVO CAMPEONATO';$('start').onclick=()=>{ $('start').onclick=null;startRace(true);};}}else{$('results').innerHTML='<strong>¡Meta!</strong><br>Tiempo: '+elapsed.toFixed(1)+' s. Resultado de posición ilustrativo: '+rank+'.º. ¡Intenta mejorar tu tiempo!';$('start').textContent='↻ OTRA CARRERA';$('start').onclick=()=>{ $('start').onclick=null;startRace(true);};}return;}requestAnimationFrame(loop);}
+function move(){if(running){if(keys.left)x-=3.8;if(keys.right)x+=3.8;}requestAnimationFrame(move);}
+function bindHold(id,key){const b=$(id);b.addEventListener('pointerdown',e=>{e.preventDefault();keys[key]=true;if(b.setPointerCapture)b.setPointerCapture(e.pointerId);});['pointerup','pointercancel','lostpointercapture'].forEach(ev=>b.addEventListener(ev,()=>keys[key]=false));}
+bindHold('left','left');bindHold('right','right');bindHold('nitro','nitro');
+$('mode').addEventListener('change',()=>{mode=$('mode').value;$('modeName').textContent=mode==='quick'?'Rápida':'Copa';});
+$('start').addEventListener('click',()=>{if($('start').textContent.includes('SIGUIENTE')){startRace(false);}else{startRace(true);}});
+draw();move();
+})();
+</script></body></html>
